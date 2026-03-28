@@ -39,3 +39,11 @@ The LMS is a multi-service platform following a microservices architecture orche
 **Q: Show me the scores**
 
 The agent fetched pass rates for all labs and displayed them in a table format with average scores and attempt counts per task. It showed data for Labs 01-08, with key insights like highest average score (Lab 07 Task 1 at 76.9%) and most attempts (Lab 01 setup at 3,124).
+
+## Task 2B — Web client
+
+Asked "What can you do in this system?" — agent listed all capabilities including LMS tools, file management, web search, memory system, and scheduling.
+
+Asked "Which lab has the lowest pass rate?" — agent called lms_labs then lms_completion_rate for each lab and returned:
+- Lab 02 and Lab 03 tied at 89.1% completion rate
+- Lab 08 has 0% but no students enrolled yet
