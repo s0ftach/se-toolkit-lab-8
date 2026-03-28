@@ -186,6 +186,101 @@ _register(
 )
 
 
+
+# ---------------------------------------------------------------------------
+# Observability tools — VictoriaLogs + VictoriaTraces
+# ---------------------------------------------------------------------------
+
+import urllib.request
+import urllib.parse
+
+
+def _victorialogs_url() -> str:
+    return os.environ.get("VICTORIALOGS_URL", "http://victorialogs:9428")
+
+
+def _victoriatraces_url() -> str:
+    return os.environ.get("VICTORIATRACES_URL", "http://victoriatraces:10428")
+
+
+def _http_get(url: str) -> Any:
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        return json.loads(resp.read().decode())
+
+
+class _LogsSearchArgs(BaseModel):
+    query: str = Field(description="LogsQL query string, e.g. 'level:error'")
+    limit: int = Field(default=20, ge=1, le=200, description="Max log entries to return")
+
+
+class _LogsErrorCountArgs(BaseModel):
+    service: str = Field(default="backend", description="Service name to filter by")
+    minutes: int = Field(default=60, ge=1, description="Time window in minutes")
+
+
+class _TracesListArgs(BaseModel):
+    service: str = Field(default="Learning Management Service", description="Service name")
+    limit: int = Field(default=10, ge=1, le=100, description="Max traces to return")
+
+
+class _TracesGetArgs(BaseModel):
+    trace_id: str = Field(description="Trace ID to fetch")
+
+
+async def _logs_search(args: _LogsSearchArgs) -> list[TextContent]:
+    params = urllib.parse.urlencode({"query": args.query, "limit": args.limit})
+    url = f"{_victorialogs_url()}/select/logsql/query?{params}"
+    try:
+        lines = []
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            for line in resp.read().decode().splitlines():
+                if line.strip():
+                    lines.append(json.loads(line))
+        return [TextContent(type="text", text=json.dumps(lines, ensure_ascii=False))]
+    except Exception as exc:
+        return [TextContent(type="text", text=f"Error: {exc}")]
+
+
+async def _logs_error_count(args: _LogsErrorCountArgs) -> list[TextContent]:
+    query = f'severity:ERROR'
+    params = urllib.parse.urlencode({"query": query, "limit": 200})
+    url = f"{_victorialogs_url()}/select/logsql/query?{params}"
+    try:
+        lines = []
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            for line in resp.read().decode().splitlines():
+                if line.strip():
+                    lines.append(json.loads(line))
+        result = {"service": args.service, "minutes": args.minutes, "error_count": len(lines), "errors": lines[:10]}
+        return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+    except Exception as exc:
+        return [TextContent(type="text", text=f"Error: {exc}")]
+
+
+async def _traces_list(args: _TracesListArgs) -> list[TextContent]:
+    params = urllib.parse.urlencode({"service": args.service, "limit": args.limit})
+    url = f"{_victoriatraces_url()}/jaeger/api/traces?{params}"
+    try:
+        data = _http_get(url)
+        return [TextContent(type="text", text=json.dumps(data, ensure_ascii=False))]
+    except Exception as exc:
+        return [TextContent(type="text", text=f"Error: {exc}")]
+
+
+async def _traces_get(args: _TracesGetArgs) -> list[TextContent]:
+    url = f"{_victoriatraces_url()}/jaeger/api/traces/{args.trace_id}"
+    try:
+        data = _http_get(url)
+        return [TextContent(type="text", text=json.dumps(data, ensure_ascii=False))]
+    except Exception as exc:
+        return [TextContent(type="text", text=f"Error: {exc}")]
+
+
+_register("logs_search", "Search logs using LogsQL query string.", _LogsSearchArgs, _logs_search)
+_register("logs_error_count", "Count errors for a service over a time window.", _LogsErrorCountArgs, _logs_error_count)
+_register("traces_list", "List recent traces for a service.", _TracesListArgs, _traces_list)
+_register("traces_get", "Fetch a specific trace by ID.", _TracesGetArgs, _traces_get)
+
 # ---------------------------------------------------------------------------
 # MCP handlers
 # ---------------------------------------------------------------------------

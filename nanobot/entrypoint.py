@@ -18,6 +18,8 @@ config["gateway"]["port"] = int(os.environ.get("NANOBOT_GATEWAY_CONTAINER_PORT",
 
 config["tools"]["mcpServers"]["lms"]["env"]["NANOBOT_LMS_BACKEND_URL"] = os.environ.get("NANOBOT_LMS_BACKEND_URL", "")
 config["tools"]["mcpServers"]["lms"]["env"]["NANOBOT_LMS_API_KEY"] = os.environ.get("NANOBOT_LMS_API_KEY", "")
+config["tools"]["mcpServers"]["lms"]["env"]["VICTORIALOGS_URL"] = os.environ.get("VICTORIALOGS_URL", "http://victorialogs:9428")
+config["tools"]["mcpServers"]["lms"]["env"]["VICTORIATRACES_URL"] = os.environ.get("VICTORIATRACES_URL", "http://victoriatraces:10428")
 
 if "webchat" not in config["channels"]:
     config["channels"]["webchat"] = {}
