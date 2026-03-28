@@ -57,3 +57,22 @@ No errors in the last hour. The backend service shows 0 errors in the past 60 mi
 Yes, there are 5 errors in the last hour:
 - 4 recent db_query errors: `[Errno -2] Name or service not known` (DNS/connection issues reaching the database)
 - 1 older UniqueViolationError from pipeline sync (duplicate key on learner_external_id_key)
+
+## Task 4A — Multi-step investigation
+
+With PostgreSQL stopped, asked "What went wrong?". The agent used logs_error_count and logs_search tools to find db_query errors with "[Errno -2] Name or service not known" indicating the backend could not reach the database. Trace ID was extracted and traces_get was called to confirm the failure span.
+
+## Task 4B — Proactive health check
+
+Created a health check cron job running every 2 minutes. While PostgreSQL was stopped, the agent proactively reported database connection errors in the chat. After restarting PostgreSQL, the agent reported the system looks healthy.
+
+## Task 4C — Bug fix and recovery
+
+**Root cause:** In `backend/app/routers/items.py`, the `get_items` endpoint caught all exceptions and raised `HTTP 404 Not Found` instead of letting the real error propagate. This masked database connection failures as "Items not found".
+
+**Fix:** Removed the try/except block from `get_items` so exceptions propagate to the global exception handler which returns HTTP 500 with the real error details.
+
+**Post-fix failure check:** After fix, stopping PostgreSQL and calling GET /items/ returns:
+`{"detail": "[Errno -2] Name or service not known", "type": "gaierror", "path": "/items/"}` with status 500.
+
+**Healthy follow-up:** After restarting PostgreSQL, GET /items/ returns 200 with the full items list.
