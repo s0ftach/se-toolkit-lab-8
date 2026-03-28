@@ -47,3 +47,13 @@ Asked "What can you do in this system?" — agent listed all capabilities includ
 Asked "Which lab has the lowest pass rate?" — agent called lms_labs then lms_completion_rate for each lab and returned:
 - Lab 02 and Lab 03 tied at 89.1% completion rate
 - Lab 08 has 0% but no students enrolled yet
+
+## Task 3C — Observability MCP tools
+
+**Normal conditions:**
+No errors in the last hour. The backend service shows 0 errors in the past 60 minutes.
+
+**With PostgreSQL stopped:**
+Yes, there are 5 errors in the last hour:
+- 4 recent db_query errors: `[Errno -2] Name or service not known` (DNS/connection issues reaching the database)
+- 1 older UniqueViolationError from pipeline sync (duplicate key on learner_external_id_key)
